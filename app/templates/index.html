@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block styles %}
+{{super()}}
+<link rel="stylesheet" href="{{url_for('static', filename='index.css')}}">
+{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 15px; margin-bottom: 15px;">
+    <div class="col-md-6">
+        <h1>Simple Prediction</h1>
+        <form action="" method="POST" autocomplete="off" novalidate>
+            {{ form.hidden_tag() }}
+            <div style="display: inline-block; width: 200px"><p>{{ wtf.form_field(form.yardline) }}</p></div><br>
+            <div>
+                <div style="display: inline-block; width: 90px"><p>{{ wtf.form_field(form.team) }}</p></div>
+                <div style="display: inline-block; width: 100px;margin-left: 50px;"><p>{{ wtf.form_field(form.direction) }}</p></div>
+                <div style="display: inline-block; width: 100px;margin-left: 50px;"><p>{{ wtf.form_field(form.quarter) }}</p></div>
+            </div>
+            <br>
+            <label for="gameclock" style="font-size: 20px;">Game Clock</label>
+            <div id="gameclock">
+                <div style="display: inline-block; width: 200px">{{ wtf.form_field(form.gameclock_minutes) }}</div>
+                <div style="display: inline-block; width: 200px">{{ wtf.form_field(form.gameclock_seconds) }}</div>
+            </div>
+            <br>
+            <label for="yardage" style="font-size: 18px;">Predict the probability of an NFL rusher gaining between the two specified yardarges</label>
+            <div id="yardage">
+                <div style="display: inline-block; width: 200px">{{ wtf.form_field(form.low_yardage) }}</div>
+                <div style="display: inline-block; width: 200px">{{ wtf.form_field(form.high_yardage) }}</div>
+            </div>
+            <br>
+            <section id="search-section">
+                <div class="autocomplete" style="width:300px;">
+                    {{ wtf.form_field(form.myPlayer, id="myInput") }}
+                </div>
+            </section>
+            <input type="submit" class="btn btn-primary">
+        </form>
+    </div>
+    <div class="col-md-6">
+        {% if prediction %}
+        <p>This is a {{prediction}}</p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{url_for('static', filename='index.js')}}"></script>
+{{super()}}
+<script type="text/javascript">
+players = {{ player_list| safe }};
+console.log(players);
+// player_list = ["Jake","Jacob","Johnny"];
+// console.log(player_list);
+
+autocomplete(document.getElementById("myInput"), players);
+</script>
+{% endblock %} 
+
