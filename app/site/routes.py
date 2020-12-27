@@ -8,7 +8,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 import pickle, json
 import pandas as pd 
 import numpy as np 
-import data_models
+import app.data_models
 
 """ TODO:
 1. Refactor the code
@@ -24,7 +24,7 @@ QUARTER_FIELDS = {'1':'1','2':'2','3':'3','4':'4'}
 @bp.route('/index',methods=['POST','GET'])
 @login_required
 def index():
-
+    print("Model:", app.data_models.model) # this works - allows you to keep data_models in the app folder
     with open('app/namelist.pkl','rb') as pkl:
         player_list = pickle.load(pkl)
     form = SimplePredictionForm()

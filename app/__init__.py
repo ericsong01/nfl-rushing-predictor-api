@@ -3,10 +3,13 @@ from config import Configuration
 from app.api import bp as api_bp
 from app.site import bp as site_bp
 from app.extensions import db, migrate, bootstrap, login_manager
+from app.load_model import load_model
 
 def create_app():
     app = Flask(__name__)
     bootstrap.init_app(app)
+
+    load_model()
 
     app.config.from_object('config.Configuration')
 
