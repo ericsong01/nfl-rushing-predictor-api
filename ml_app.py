@@ -1,7 +1,6 @@
 from app import create_app
 from app.models import User
 from app.extensions import db 
-from app.load_model import load_model
 
 app = create_app()
 
