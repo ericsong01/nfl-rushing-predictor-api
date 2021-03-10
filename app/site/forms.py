@@ -1,19 +1,8 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextField, SubmitField, PasswordField, BooleanField, SelectField, IntegerField
-from wtforms.validators import Length, Email, InputRequired, EqualTo, email_validator, NumberRange
+from wtforms import StringField, TextField, SubmitField, BooleanField, SelectField, IntegerField
+from wtforms.validators import InputRequired, EqualTo, NumberRange
 from wtforms.fields import html5 as h5fields
 from wtforms.widgets import html5 as h5widgets
-
-class RegisterForm(FlaskForm):
-    email = StringField('Email address', validators=[InputRequired(), Email(message="Must be an email address")])
-    name = StringField('Name', validators=[InputRequired()])
-    password = PasswordField('Password', validators=[InputRequired(),Length(min=8,max=50,message="You password must be between 8 and 50 characters long")])
-    password2 = PasswordField('Reenter Password', validators=[InputRequired(), EqualTo('password', message="Your passwords must be equal")])
-
-class LoginForm(FlaskForm):
-    email = StringField('Email address', validators=[InputRequired()])
-    password = PasswordField('Password', validators=[InputRequired()])
-    remember_me = BooleanField('Remember me')
 
 # TEAM_FIELDS = [('1','NE'), ('2','KC'), ('3','BUF'), ('4','NYJ'), ('5','ATL'), ('6','CHI'), 
 #                 ('7','CIN'), ('8','BAL'), ('9','CLE'), ('10','PIT'), ('11','ARI'), ('12','DET'), 
