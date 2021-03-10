@@ -1,10 +1,7 @@
 from app.site import bp 
-from app.site.forms import RegisterForm, LoginForm, SimplePredictionForm
+from app.site.forms import SimplePredictionForm
 from flask import render_template, redirect, url_for, request
 from werkzeug.urls import url_parse 
-from app.models import User 
-from app.extensions import db 
-from flask_login import current_user, login_required, login_user, logout_user
 import pickle, json
 import pandas as pd 
 import numpy as np 
@@ -22,7 +19,6 @@ QUARTER_FIELDS = {'1':'1','2':'2','3':'3','4':'4'}
 
 @bp.route('/',methods=['POST','GET'])
 @bp.route('/index',methods=['POST','GET'])
-@login_required
 def index():
     print("Model:", data_models.model) # this works - allows you to keep data_models in the app folder
     with open('app/namelist.pkl','rb') as pkl:
@@ -82,44 +78,3 @@ def standardize_x_yards(yard, playDir):
 def convert_to_seconds(minutes, seconds):
     return (minutes * 60) + seconds
 
-@bp.route('/register',methods=['GET','POST'])
-def register():
-    form = RegisterForm()
-    if current_user.is_authenticated:
-        return redirect(url_for('site.index'))
-        
-    if form.validate_on_submit():
-        user = User(email=form.email.data,name=form.name.data)
-        user.set_password_hash(form.password.data)
-        db.session.add(user)
-        db.session.commit()
-        return redirect(url_for('site.login'))
-
-    return render_template('register.html', form=form)
-
-@bp.route('/login',methods=['POST','GET'])
-def login():
-    form = LoginForm()
-    if current_user.is_authenticated:
-        return redirect(url_for('site.index'))
-
-    if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
-        if (user is None) or not user.check_password(form.password.data):
-            return redirect(url_for('site.login')) 
-
-        login_user(user, remember=form.remember_me.data)
-
-        next_page = request.args.get('next')
-        print(next_page)
-        if not next_page or url_parse(next_page).netloc != '':
-            print("success")
-            return redirect(url_for('site.index'))
-        return redirect(next_page)
-    
-    return render_template('login.html',form=form)
-    
-@bp.route('/logout')
-def logout():
-    logout_user()
-    return redirect(url_for('site.login'))
