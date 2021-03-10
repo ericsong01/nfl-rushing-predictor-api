@@ -5,17 +5,19 @@ class Utils:
 
     @staticmethod
     def load_model_and_utils():
-        model_filename = "data_models/nfl_model1.pkl"
-        scaler_filename = "data_models/nfl_scaler1.pkl"
-        encoder_filename = "data_models/nfl_encoder1.pkl"
-        
-        app.data_models.model = joblib.load(model_filename)
-        app.data_models.scaler = joblib.load(scaler_filename)
-        app.data_models.encoder = joblib.load(encoder_filename)
+        simple_model_filename = "data_models/nfl_model1.pkl"
+        simple_encoder_filename = "data_models/nfl_encoder1.pkl"
 
-        print("Model:", app.data_models.model)
-        print("Encoder:", app.data_models.encoder)
-        print("Scaler:", app.data_models.scaler)
+        kaggle_model_filename = "data_models/nfl_model_kaggle.pkl"
+        kaggle_encoder_filename = "data_models/nfl_encoder_kaggle.pkl"
+        
+        app.data_models.model = joblib.load(simple_model_filename)
+        app.data_models.encoder = joblib.load(simple_encoder_filename)
+        app.data_models.kaggle_encoder = joblib.load(kaggle_encoder_filename)
+        app.data_models.kaggle_model = joblib.load(kaggle_model_filename)
+
+        print("Kaggle Model:", app.data_models.kaggle_model)
+        print("Kaggle Encoder:", app.data_models.kaggle_encoder)
 
 
 
