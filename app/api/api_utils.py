@@ -8,9 +8,9 @@ class KaggleDataframe:
     df = None # raw df to be manipulated
     model_df = None # df to be fed into model 
 
-    def validate_df(self):
+    def validate_df(self, df):
         
-        if self.df["PlayId"].nunique() != 1: # Ensure only one play is passed through 
+        if df["PlayId"].nunique() != 1: # Ensure only one play is passed through 
             return False
 
         required_cols = ['PlayId','Team','X','Y','S','A','Dis','Orientation','Dir','NflId',
@@ -20,16 +20,17 @@ class KaggleDataframe:
         'TimeHandoff','TimeSnap','PlayerHeight','PlayerWeight','PlayerBirthDate',
         'HomeTeamAbbr','Week','StadiumType','Turf','GameWeather','Temperature']
 
-        if set(required_cols).issubset(self.df.columns):
+        if set(required_cols).issubset(df.columns):
             return True 
         else:
             return False
 
     def __init__(self, json):
         # TODO: See if this is converting it to a pandas dataframe 
-        self.df = pd.DataFrame.from_dict(json, orient="index")
-        if not self.validate_df:
+        raw_df = pd.DataFrame.from_dict(json, orient="index")
+        if not self.validate_df(raw_df):
             raise Exception("Dataframe can't be initialized due to missing feature column")
+        self.df = raw_df 
 
     def clean_features(self):
         self.df.FieldPosition = self.df.FieldPosition.fillna('Neutral')
