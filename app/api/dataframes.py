@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import app.data_models as data_models
-import math 
+from app.utils import Utils 
 
 class KaggleDataframe:
 
@@ -11,7 +11,12 @@ class KaggleDataframe:
     def validate_df(self, df):
         
         if df["PlayId"].nunique() != 1: # Ensure only one play is passed through 
-            return False
+            error_message = "Ensure only one play data is contained in the dataframe (Check if all PlayIDs are the same)"
+            return False, error_message
+
+        if df.columns[0] == "Unnamed: 0":
+            error_message = "When transforming the dataframe into a csv to pass into the POST request, ensure indexes aren't included"
+            return False, error_message
 
         required_cols = ['PlayId','Team','X','Y','S','A','Dis','Orientation','Dir','NflId',
         'DisplayName','JerseyNumber','Season','YardLine','Quarter','GameClock','PossessionTeam',
@@ -21,17 +26,19 @@ class KaggleDataframe:
         'HomeTeamAbbr','Week','StadiumType','Turf','GameWeather','Temperature']
 
         if set(required_cols).issubset(df.columns):
-            return True 
+            return True, ""
         else:
-            return False
+            error_message = "Ensure all original data fields from the Kaggle dataset are included (38 fields)"
+            return False, error_message
 
-    def __init__(self, df, json=True):
-        if json:
-            raw_df = pd.DataFrame.from_dict(json, orient="index")
-        else:
-            raw_df = df 
-        if not self.validate_df(raw_df):
-            raise Exception("Dataframe can't be initialized due to missing feature column")
+    def __init__(self, csv):
+        raw_df = pd.read_csv(csv)
+
+        valid, error = self.validate_df(raw_df)
+
+        if not valid:
+            raise Exception(error)
+
         self.df = raw_df 
 
     def clean_features(self):
@@ -75,18 +82,18 @@ class KaggleDataframe:
         self.df['FieldPosition'] = self.df['FieldPosition'].replace('HST','HOU')
 
         self.df['DefendersInTheBox'] = pd.to_numeric(self.df["DefendersInTheBox"],errors='coerce')
-        self.df['PlayerBirthDate'] = pd.to_datetime(self.df["PlayerBirthDate"], format='%m\/%d\/%Y', errors='coerce')
+        self.df['PlayerBirthDate'] = pd.to_datetime(self.df["PlayerBirthDate"], format='%m/%d/%Y', errors='coerce')
         self.df['TimeHandoff'] = pd.to_datetime(self.df['TimeHandoff'], format='%Y-%m-%dT%H:%M:%S.%fZ', errors='coerce')
         self.df['TimeSnap'] = pd.to_datetime(self.df['TimeSnap'], format='%Y-%m-%dT%H:%M:%S.%fZ', errors='coerce')
 
     def standardize_features(self):
-        self.df['GameClock'] = self.df['GameClock'].apply(lambda x: LambdaFuncs.convert_gameclock_to_seconds(x))
-        self.df['PlayerHeight'] = self.df['PlayerHeight'].apply(lambda x: LambdaFuncs.to_inches(x))
-        self.df['YardLine'] = self.df[['PossessionTeam','FieldPosition','YardLine']].apply(lambda x: LambdaFuncs.yardLine(x[0],x[1],x[2]), axis=1)
-        self.df["X"] = self.df[['X','PlayDirection']].apply(lambda x: LambdaFuncs.standardize_x(x[0],x[1]), axis=1)
-        self.df["Y"] = self.df[['Y','PlayDirection']].apply(lambda y: LambdaFuncs.standardize_y(y[0],y[1]), axis=1)
-        self.df["Orientation"] = self.df[['Orientation','PlayDirection']].apply(lambda x: LambdaFuncs.standardize_orientation(x[0],x[1]), axis=1)
-        self.df["Dir"] = self.df[['Dir','PlayDirection']].apply(lambda x: LambdaFuncs.standardize_direction(x[0],x[1]), axis=1)
+        self.df['GameClock'] = self.df['GameClock'].apply(lambda x: Utils.convert_gameclock_to_seconds(x))
+        self.df['PlayerHeight'] = self.df['PlayerHeight'].apply(lambda x: Utils.to_inches(x))
+        self.df['YardLine'] = self.df[['PossessionTeam','FieldPosition','YardLine']].apply(lambda x: Utils.yardLine(x[0],x[1],x[2]), axis=1)
+        self.df["X"] = self.df[['X','PlayDirection']].apply(lambda x: Utils.standardize_x(x[0],x[1]), axis=1)
+        self.df["Y"] = self.df[['Y','PlayDirection']].apply(lambda y: Utils.standardize_y(y[0],y[1]), axis=1)
+        self.df["Orientation"] = self.df[['Orientation','PlayDirection']].apply(lambda x: Utils.standardize_orientation(x[0],x[1]), axis=1)
+        self.df["Dir"] = self.df[['Dir','PlayDirection']].apply(lambda x: Utils.standardize_direction(x[0],x[1]), axis=1)
 
         self.df = self.df.drop(['Humidity','WindSpeed','WindDirection','Location','Stadium','PlayerCollegeName','PlayDirection','Position'], axis=1)
 
@@ -100,7 +107,7 @@ class KaggleDataframe:
         defense_df = defense_df[defense_df['Team'] != defense_df['RusherTeam']]
         
         # Calculate distance from each defensive player to the rusher 
-        defense_df['DistanceFromRusher'] = defense_df[['RusherX','RusherY','X','Y']].apply(lambda x: LambdaFuncs.distance(x[0],x[1],x[2],x[3]), axis=1)
+        defense_df['DistanceFromRusher'] = defense_df[['RusherX','RusherY','X','Y']].apply(lambda x: Utils.distance(x[0],x[1],x[2],x[3]), axis=1)
         defense_df = defense_df[['GameId','PlayId','DistanceFromRusher']]
         
         # Collect min, max, mean, and std of distance from defensive players to the rusher for each play 
@@ -112,14 +119,14 @@ class KaggleDataframe:
         train_df = self.df[self.df['NflId'] == self.df['NflIdRusher']]
         defense_df = self.create_defensive_features(self.df)
         train_df = pd.merge(train_df, defense_df, on=['GameId','PlayId'], how='inner')
-        train_df = train_df.apply(LambdaFuncs.offense, axis=1)
-        train_df = train_df.apply(LambdaFuncs.defense, axis=1)
+        train_df = train_df.apply(Utils.offense, axis=1)
+        train_df = train_df.apply(Utils.defense, axis=1)
         train_df = train_df.drop(['DefensePersonnel','OffensePersonnel'],axis=1)
-        train_df['TacklerBlockerDifference'] = train_df[['OL','TE','DL','LB']].apply(lambda x: LambdaFuncs.line_diff(x[0],x[1],x[2],x[3]), axis=1)
-        train_df['Age'] = train_df[['TimeHandoff','PlayerBirthDate']].apply(lambda x: LambdaFuncs.get_year(x[0],x[1]), axis=1)
+        train_df['TacklerBlockerDifference'] = train_df[['OL','TE','DL','LB']].apply(lambda x: Utils.line_diff(x[0],x[1],x[2],x[3]), axis=1)
+        train_df['Age'] = train_df[['TimeHandoff','PlayerBirthDate']].apply(lambda x: Utils.get_year(x[0],x[1]), axis=1)
         train_df = train_df.drop(['TimeHandoff','PlayerBirthDate','TimeSnap'], axis=1)
-        train_df['DistanceBehindLine'] = train_df[['X','YardLine']].apply(lambda x: LambdaFuncs.distance_behind_line(x[0],x[1]),axis=1)
-        train_df['DistanceToEndzone'] = train_df[['YardLine']].apply(lambda x: LambdaFuncs.distance_to_endzone(x[0]), axis=1)
+        train_df['DistanceBehindLine'] = train_df[['X','YardLine']].apply(lambda x: Utils.distance_behind_line(x[0],x[1]),axis=1)
+        train_df['DistanceToEndzone'] = train_df[['YardLine']].apply(lambda x: Utils.distance_to_endzone(x[0]), axis=1)
         self.model_df = train_df
 
     def get_prediction(self):
@@ -134,145 +141,3 @@ class KaggleDataframe:
     def __repr__(self):
         return self.df
 
-class LambdaFuncs:
-
-    @staticmethod
-    def convert_gameclock_to_seconds(str):
-        split_str = str.split(':')
-        return int(split_str[0])*60 + int(split_str[1]) + int(split_str[2])/60
-
-    @staticmethod
-    def to_inches(height):
-        ft_inch = height.split('-')
-        feet = int(ft_inch[0])
-        inch = int(ft_inch[1])
-        return (feet*12) + inch
-
-    @staticmethod
-    def yardLine(posTeam, fieldPosition, yardLine):
-        # Still on own field side - we have to account for the endzone too
-        if posTeam == fieldPosition: 
-            return 10 + yardLine
-        else: 
-            return 60 + (50 - yardLine)
-
-    @staticmethod
-    def standardize_x(x, playDir):
-        if playDir == 'left':
-            return 120 - x
-        else:
-            return x
-
-    @staticmethod
-    def standardize_y(y, playDir):
-        if playDir == 'left':
-            return 53.3 - float(y)
-        else:
-            return y
-
-    @staticmethod
-    def standardize_orientation(ori, playDir):
-        if playDir == 'left':
-            return 180 + ori
-        else:
-            return ori
-
-    @staticmethod
-    def standardize_direction(direc, playDir):
-        if playDir == 'left':
-            return 180 + direc
-        else:
-            return direc
-
-    @staticmethod
-    def distance(rush_x, rush_y, def_x, def_y):
-        return abs(math.sqrt(pow(def_x - rush_x, 2) + pow(def_y - rush_y, 2)))
-
-    @staticmethod 
-    def offense(df):
-        personnel = df['OffensePersonnel']
-        RB = 0
-        TE = 0
-        WR = 0
-        OL = 0
-        QB = 0
-        prevChar = personnel[0]
-        positions = ['OL','RB','TE','WR','LB']
-        for i in range(len(personnel)): 
-            symbol = prevChar + personnel[i]
-            if symbol in positions:
-                count = personnel[i-3]
-                if (symbol == 'OL'):
-                    OL = int(count)
-                elif (symbol == 'RB'):
-                    RB = int(count)
-                elif (symbol == 'TE'):
-                    TE = int(count)
-                elif (symbol == 'WR'):
-                    WR = int(count)
-                elif (symbol == 'QB'):
-                    QB = int(count)
-            prevChar = personnel[i]
-            
-        # Default to 1 QB 
-        if (QB == 0):
-            QB = 1
-        
-        # Handle cases w/ strange offense personnel such as having a DB or LB which are defensive positions 
-        # I'll assume those become an OL position 
-        if (OL == 0) | (RB + TE + WR + OL + QB != 11):
-            OL = 11 - RB - TE - WR - QB 
-            
-        df['RB'] = RB
-        df['TE'] = TE
-        df['WR'] = WR
-        df['OL'] = OL
-        df['QB'] = QB
-        return df
-
-    @staticmethod
-    def defense(df):
-        personnel = df['DefensePersonnel']
-        DL = 0
-        DB = 0
-        LB = 0
-        prevChar = personnel[0]
-        positions = ['DL','DB','LB']
-        for i in range(len(personnel)): 
-            symbol = prevChar + personnel[i]
-            if symbol in positions:
-                count = personnel[i-3]
-                if (symbol == 'DL'):
-                    DL = int(count)
-                elif (symbol == 'DB'):
-                    DB = int(count)
-                elif (symbol == 'LB'):
-                    LB = int(count)
-            prevChar = personnel[i]
-            
-        # Handle cases w/ strange defensive personnel such as having a RB or OL which are offensive positions 
-        # I'll assume those take on DL positions 
-        if (DL == 0) | (DL + DB + LB!= 11):
-            OL = 11 - DB - LB
-            
-        df['DL'] = DL
-        df['DB'] = DB
-        df['LB'] = LB
-        return df
-
-    @staticmethod
-    def line_diff(ol,te,dl,lb):
-        return (ol + te) - (dl + lb)
-
-    @staticmethod
-    def get_year(handoff, birth):
-        age = handoff.year - birth.year - ((handoff.year, handoff.day) < (birth.month, birth.day))
-        return age
-
-    @staticmethod 
-    def distance_behind_line(x, yardLine):
-        return yardLine - x
-
-    @staticmethod 
-    def distance_to_endzone(yardLine):
-        return 110 - yardLine

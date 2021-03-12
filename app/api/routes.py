@@ -1,7 +1,7 @@
 from app.api import bp 
 from flask import jsonify, request
 import json
-from app.api.api_utils import KaggleDataframe
+from app.api.dataframes import KaggleDataframe
 
 """
 Data Input Process:
@@ -10,23 +10,24 @@ Data Input Process:
 
 """
 
+# Accepts a dataframe as a CSV file (converted into csv with index=False)
 @bp.route('/predict-kaggle-data', methods=['POST'])
 def prediction():
-    data = request.get_json(force=True)
-    data = str(data).replace("\'", "\"")
-    json_res = json.loads(data)
+    csv_file = request.files["dataframe_csv"]
     
-    df = KaggleDataframe(json_res)
-    df.validate_df()
-    df.clean_features()
-    df.standardize_features() 
-    df.engineer_features()
+    try:
+        kaggle_df = KaggleDataframe(csv_file)
+    except Exception as e:
+        return str(e)
 
-    prediction = df.get_prediction()
+    kaggle_df.clean_features()
+    kaggle_df.standardize_features()
+    kaggle_df.engineer_features()
+
+    prediction = kaggle_df.get_prediction()
 
     labeled_predictions = []
     for i in range(len(prediction)):
         labeled_predictions.append("Gain {} Yards: {}".format(i-99, prediction[i]))
-
-    # Convert to df 
+ 
     return jsonify(labeled_predictions)
