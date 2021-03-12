@@ -25,9 +25,11 @@ class KaggleDataframe:
         else:
             return False
 
-    def __init__(self, json):
-        # TODO: See if this is converting it to a pandas dataframe 
-        raw_df = pd.DataFrame.from_dict(json, orient="index")
+    def __init__(self, df, json=True):
+        if json:
+            raw_df = pd.DataFrame.from_dict(json, orient="index")
+        else:
+            raw_df = df 
         if not self.validate_df(raw_df):
             raise Exception("Dataframe can't be initialized due to missing feature column")
         self.df = raw_df 
