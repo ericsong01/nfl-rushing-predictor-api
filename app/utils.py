@@ -17,13 +17,17 @@ class Utils:
         app.data_models.kaggle_encoder = joblib.load(kaggle_encoder_filename)
         app.data_models.kaggle_model = joblib.load(kaggle_model_filename)
 
-        print("Kaggle Model:", app.data_models.kaggle_model)
-        print("Kaggle Encoder:", app.data_models.kaggle_encoder)
+        print("Kaggle Model:", app.data_models.model)
+        print("Kaggle Encoder:", app.data_models.encoder)
 
     @staticmethod
     def convert_gameclock_to_seconds(str):
         split_str = str.split(':')
         return int(split_str[0])*60 + int(split_str[1]) + int(split_str[2])/60
+
+    @staticmethod
+    def convert_time_to_seconds(minutes, seconds):
+        return (minutes * 60) + seconds
 
     @staticmethod
     def to_inches(height):

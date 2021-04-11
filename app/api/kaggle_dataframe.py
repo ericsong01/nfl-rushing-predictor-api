@@ -138,6 +138,4 @@ class KaggleDataframe:
         array = data_models.kaggle_model.predict(self.model_df) 
         return np.clip(np.cumsum(array, axis=1), 0, 1).tolist()[0]
     
-    def __repr__(self):
-        return self.df
 
