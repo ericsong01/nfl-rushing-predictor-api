@@ -8,16 +8,24 @@ class SimpleDataframe:
     df = None
 
     def __init__(self, data):
-        team, yardline, player, direction = data[0], data[1], data[2], data[3]
-        quarter, minutes, seconds = int(data[4]), int(data[5]), int(data[6])
-        SEASON = 2020 
 
+        try:
+            valid_data = self.validate_data(data)
+        except Exception as e:
+            raise Exception(e)
+            
+        # Extract data fields from valid_data array
+        team, yardline, player, direction = valid_data[0], valid_data[1], valid_data[2], valid_data[3]
+        quarter, minutes, seconds = valid_data[4], valid_data[5], valid_data[6]
+        SEASON = 2020   
+        
+        # Standardize data before converting into pd dataframe
         X = Utils.standardize_x(yardline, direction.lower())
         std_yards = X 
         std_gameclock = Utils.convert_time_to_seconds(minutes, seconds)
 
-        data = [team, X, player, std_yards, SEASON, quarter, std_gameclock]
-        data_array = np.array(data)[np.newaxis, :]
+        std_data = [team, X, player, std_yards, SEASON, quarter, std_gameclock]
+        data_array = np.array(std_data)[np.newaxis, :]
         self.df = pd.DataFrame(data_array, columns=['Team', 'X', 'DisplayName','YardLine','Season','Quarter','GameClock'])
 
     def predict(self):
@@ -26,43 +34,43 @@ class SimpleDataframe:
         y_pred = np.clip(np.cumsum(pred_array, axis=1), 0, 1).tolist()[0]
         
         return y_pred
+    
+    """Ensure data fields contain valid inputs and return an array w/ valid data fields"""
+    def validate_data(self, data):
+        try:
+            valid_team_fields = ["home", "away"]
+            team = data["team"]
+            if team.lower() not in valid_team_fields:
+                raise Exception("Invalid input: Team")
 
-        
-        
+            yardline = int(data["yardline"])
+            if yardline < 0 or yardline > 50:
+                raise Exception("Invalid input: Yardline")
 
+            direction = data["direction"]
+            if direction.lower() not in ["right", "left"]:
+                raise Exception("Invalid input: Direction")
 
-"""
-team = TEAM_FIELDS[form.team.data].lower()
-        yardline = form.yardline.data 
-        std_yards = standardize_x_yards(yardline, PLAY_DIR_FIELDS[form.direction.data])
-        X = standardize_x_yards(yardline, PLAY_DIR_FIELDS[form.direction.data])
-        player = form.myPlayer.data 
-        season = 2020
-        quarter = int(form.quarter.data) 
-        minutes = int(form.gameclock_minutes.data)
-        seconds = int(form.gameclock_seconds.data) 
-        gameclock = convert_to_seconds(minutes ,seconds)
+            quarter = int(data["quarter"])
+            if quarter < 1 or quarter > 4:
+                raise Exception("Invalid input: Quarter")
 
-        print("Team:", TEAM_FIELDS[form.team.data])
-        print("Yard Line:", form.yardline.data)
-        print("Quarter:", form.quarter.data)
-        print("Gameclock: %s:%s" % (form.gameclock_minutes.data, form.gameclock_seconds.data))
-        print("Player: %s" % (form.myPlayer.data))
-        print("Prediction Lower Bound: %s" % (form.low_yardage.data))
-        print("Prediction Upper Bound: %s" % (form.high_yardage.data))
-        data = [team, X, player, std_yards, season, quarter, gameclock]
-        data_array = np.array(data)[np.newaxis, :]
-        df = pd.DataFrame(data_array, columns=['Team', 'X', 'DisplayName','YardLine','Season','Quarter','GameClock'])
-        print(df)
+            minutes = int(data["gameclock_minutes"])
+            if minutes < 0 or minutes > 15:
+                raise Exception("Invalid input: Gameclock minutes can only be in the interval [0,15]")
 
-        # Perform encoding 
-        df.iloc[:,[0,2]] = data_models.encoder.transform(df.iloc[:,[0,2]])
-        print("After encode")
-        # data_models.scaler.transform(df)
-        print("After transform")
-        array = data_models.model.predict(df)
-        print("After predict")
-        y_pred = np.clip(np.cumsum(array, axis=1), 0, 1).tolist()[0]
+            seconds = int(data["gameclock_seconds"])
+            if seconds < 0 or seconds > 59:
+                raise Exception("Invalid input: Gameblock seconds can only be in the interval [0,59]")
 
-        print("Predictions:", y_pred)
-"""
+            player = data["player_name"]
+
+            data_list = [team, yardline, player, direction, quarter, minutes, seconds]
+            return data_list
+
+        except KeyError:
+            raise KeyError("Invalid or missing form fields")
+
+        except ValueError:
+            raise ValueError("Invalid input type for numeric fields")
+
