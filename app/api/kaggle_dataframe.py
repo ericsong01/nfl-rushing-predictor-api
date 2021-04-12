@@ -3,33 +3,14 @@ import numpy as np
 import app.data_models as data_models
 from app.utils import Utils 
 
+class DataframeException(Exception):
+    """Exception to indicate issue w/ dataframe"""
+    pass
+
 class KaggleDataframe:
 
     df = None # raw df to be manipulated
     model_df = None # df to be fed into model 
-
-    def validate_df(self, df):
-        
-        if df["PlayId"].nunique() != 1: # Ensure only one play is passed through 
-            error_message = "Ensure only one play data is contained in the dataframe (Check if all PlayIDs are the same)"
-            return False, error_message
-
-        if df.columns[0] == "Unnamed: 0":
-            error_message = "When transforming the dataframe into a csv to pass into the POST request, ensure indexes aren't included"
-            return False, error_message
-
-        required_cols = ['PlayId','Team','X','Y','S','A','Dis','Orientation','Dir','NflId',
-        'DisplayName','JerseyNumber','Season','YardLine','Quarter','GameClock','PossessionTeam',
-        'Down','Distance','FieldPosition','HomeScoreBeforePlay','VisitorScoreBeforePlay',
-        'NflIdRusher','OffenseFormation','OffensePersonnel','DefendersInTheBox','DefensePersonnel',
-        'TimeHandoff','TimeSnap','PlayerHeight','PlayerWeight','PlayerBirthDate',
-        'HomeTeamAbbr','Week','StadiumType','Turf','GameWeather','Temperature']
-
-        if set(required_cols).issubset(df.columns):
-            return True, ""
-        else:
-            error_message = "Ensure all original data fields from the Kaggle dataset are included (38 fields)"
-            return False, error_message
 
     def __init__(self, csv):
         raw_df = pd.read_csv(csv)
@@ -37,10 +18,37 @@ class KaggleDataframe:
         valid, error = self.validate_df(raw_df)
 
         if not valid:
-            raise Exception(error)
+            raise DataframeException(error)
 
         self.df = raw_df 
+    
+    def validate_df(self, df):
+        
+        # Ensure only one play data is contained in the dataframe
+        if df["PlayId"].nunique() != 1: 
+            error_message = "Only one play data is allowed (All PlayIDs must be identical)"
+            return False, error_message
+        
+        # Ensure index col is formatted correct 
+        if df.columns[0] == "Unnamed: 0":
+            error_message = "When transforming the dataframe into a csv to pass into the POST request, ensure indexes aren't included"
+            return False, error_message
 
+        # Ensure all original data fields are included
+        required_cols = ['PlayId','Team','X','Y','S','A','Dis','Orientation','Dir','NflId',
+        'DisplayName','JerseyNumber','Season','YardLine','Quarter','GameClock','PossessionTeam',
+        'Down','Distance','FieldPosition','HomeScoreBeforePlay','VisitorScoreBeforePlay',
+        'NflIdRusher','OffenseFormation','OffensePersonnel','DefendersInTheBox','DefensePersonnel',
+        'TimeHandoff','TimeSnap','PlayerHeight','PlayerWeight','PlayerBirthDate',
+        'HomeTeamAbbr','Week','StadiumType','Turf','GameWeather','Temperature']
+        if set(required_cols).issubset(df.columns):
+            return True, ""
+        else:
+            error_message = "Ensure all original data fields from the Kaggle dataset are included"
+            return False, error_message
+
+    """Functions for cleaning + standardizing + engineering new features
+        See nflbigdata repo for more """
     def clean_features(self):
         self.df.FieldPosition = self.df.FieldPosition.fillna('Neutral')
         self.df = self.df.fillna(method='ffill').fillna(method='bfill')
@@ -98,19 +106,15 @@ class KaggleDataframe:
         self.df = self.df.drop(['Humidity','WindSpeed','WindDirection','Location','Stadium','PlayerCollegeName','PlayDirection','Position'], axis=1)
 
     def create_defensive_features(self, df):
-        # Pull rusher specific values into a temporary df 
         rusher_df = df[df['NflId'] == df['NflIdRusher']][['GameId','PlayId','Team','X','Y']]
         rusher_df.columns = ['GameId','PlayId','RusherTeam','RusherX','RusherY']
 
-        # Get only rows corresponding to the defensive team, but include rusher specific values 
         defense_df = pd.merge(df,rusher_df,on=['GameId','PlayId'],how='inner')
         defense_df = defense_df[defense_df['Team'] != defense_df['RusherTeam']]
         
-        # Calculate distance from each defensive player to the rusher 
         defense_df['DistanceFromRusher'] = defense_df[['RusherX','RusherY','X','Y']].apply(lambda x: Utils.distance(x[0],x[1],x[2],x[3]), axis=1)
         defense_df = defense_df[['GameId','PlayId','DistanceFromRusher']]
         
-        # Collect min, max, mean, and std of distance from defensive players to the rusher for each play 
         defense_df = defense_df.groupby(['GameId','PlayId']).agg({'DistanceFromRusher':['min','max','mean','std']}).reset_index()
         defense_df.columns = ['GameId','PlayId','Def_min_dis_to_rusher','Def_max_dis_to_rusher','Def_mean_dis_to_rusher','Def_std_dis_to_rusher']
         return defense_df
