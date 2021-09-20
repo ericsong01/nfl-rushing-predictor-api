@@ -1,4 +1,5 @@
 # nflrushingpredictor
+This project allows the model created in the nfl-rushing-predictor-model repository to be accessed through an API
 
 ## How to get Dataset
 1. Download the training dataset (train.csv) from: https://www.kaggle.com/c/nfl-big-data-bowl-2020/data
